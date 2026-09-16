@@ -82,37 +82,79 @@ try:
     st.info(f"✔️ نسبة ذكاء النموذج (R² Score): **{r2 * 100:.2f}%**")
     st.warning(f"⚠️ متوسط نسبة الخطأ (MAE): **{mae:.2f} ملم/يوم فقط!**")
 
-    # 5. القرار الهندسي (حساب كمية الري)
-    st.subheader("💧 قرار الري الذكي (Irrigation Decision)")
+   # 5. القرار الهندسي (حساب كمية الري الديناميكي)
+    st.subheader("💧 قرار الري الذكي (بناءً على معادلة FAO-56)")
     
-    # قاموس المراحل الزراعية (مثال لمحصول الطماطم حسب FAO)
-    crop_stages = {
-        "🌱 مرحلة الإنبات (Initial)": 0.60,
-        "🌿 مرحلة النمو (Development)": 0.90,
-        "🌼 مرحلة الإزهار والإنتاج (Mid-Season)": 1.15,
-        "🍅 مرحلة النضج والحصاد (Late-Season)": 0.80
+    # قاعدة بيانات المحاصيل (أطوال المراحل بالأيام L، وقيم Kc)
+    # L = [الإنبات, النمو, المنتصف, النضج]
+    # Kc = [الإنبات, المنتصف, النهاية]
+    CROPS_DB = {
+        "طماطم 🍅": {"L": [30, 40, 45, 30], "Kc": [0.60, 1.15, 0.80]},
+        "قمح 🌾": {"L": [30, 35, 40, 30], "Kc": [0.30, 1.15, 0.25]},
+        "نخيل 🌴": {"L": [90, 90, 90, 95], "Kc": [0.90, 0.95, 0.95]} 
     }
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        selected_stage = st.selectbox("اختر مرحلة نمو المحصول:", list(crop_stages.keys()), key="stage")
-        kc = crop_stages[selected_stage]
-        st.caption(f"معامل المحصول (Kc) المعتمد: **{kc}**")
+        selected_crop = st.selectbox("اختر المحصول:", list(CROPS_DB.keys()), key="crop")
+        planting_date = st.date_input("تاريخ الزراعة:")
     with col2:
         area = st.number_input("مساحة الحقل (متر مربع):", value=100, key="area")
     with col3:
         efficiency = st.selectbox("نظام الري المستخدم:", ["تنقيط (90%)", "رش (75%)", "غمر (60%)"], key="eff")
     
-    # تحويل النص إلى رقم رياضي
     eff_value = 0.90 if "تنقيط" in efficiency else (0.75 if "رش" in efficiency else 0.60)
 
-    # حسابات المهندس
+    # --- تطبيق معادلة الصورة التي أرسلتها ---
+    import datetime
+    today = datetime.date.today()
+    i = (today - planting_date).days # حساب رقم اليوم (i)
+    
+    crop = CROPS_DB[selected_crop]
+    L = crop["L"]
+    Kc_vals = crop["Kc"]
+    
+    # تحديد الـ Kc بناءً على رقم اليوم (i)
+    if i < 0:
+        st.warning("تاريخ الزراعة في المستقبل! سنفترض أن المحصول لم يُزرع بعد.")
+        kc_today = 0
+    elif i <= L[0]:
+        # مرحلة الإنبات (ثابت)
+        kc_today = Kc_vals[0]
+        stage_name = "الإنبات"
+    elif i <= L[0] + L[1]:
+        # مرحلة النمو (هنا نطبق معادلة الاستيفاء الخطي من صورتك!)
+        Kc_prev = Kc_vals[0]
+        Kc_next = Kc_vals[1]
+        L_stage = L[1]
+        Sum_L_prev = L[0]
+        # المعادلة حرفياً كما في صورتك:
+        kc_today = Kc_prev + ((i - Sum_L_prev) / L_stage) * (Kc_next - Kc_prev)
+        stage_name = "النمو الخضري (متغير يومياً)"
+    elif i <= L[0] + L[1] + L[2]:
+        # مرحلة المنتصف (ثابت)
+        kc_today = Kc_vals[1]
+        stage_name = "الإزهار والإنتاج"
+    elif i <= sum(L):
+        # مرحلة النضج (نطبق المعادلة مرة أخرى للانحدار)
+        Kc_prev = Kc_vals[1]
+        Kc_next = Kc_vals[2]
+        L_stage = L[3]
+        Sum_L_prev = L[0] + L[1] + L[2]
+        kc_today = Kc_prev + ((i - Sum_L_prev) / L_stage) * (Kc_next - Kc_prev)
+        stage_name = "النضج والحصاد (متغير يومياً)"
+    else:
+        kc_today = Kc_vals[2]
+        stage_name = "انتهاء الموسم"
+
+    st.caption(f"📅 اليوم رقم: **{i}** من الموسم | المرحلة الحالية: **{stage_name}** | معامل المحصول الدقيق اليوم (Kc): **{kc_today:.3f}**")
+
+    # حسابات المهندس النهائية
     today_et0 = df['ET0_AI_Predicted'].iloc[0]
-    etc = today_et0 * kc
-    water_needed = (etc * area) / eff_value
+    etc = today_et0 * kc_today
+    water_needed = (etc * area) / eff_value if eff_value > 0 else 0
 
     st.success(f"🌱 الاحتياج المائي الصافي للمحصول (ETc): {etc:.2f} ملم/يوم")
     st.info(f"🚰 كمية الضخ المطلوبة لتعويض الفواقد: **{water_needed:.2f} لتر**")
-
 except Exception as e:
     st.error(f"حدث خطأ: {e}")
