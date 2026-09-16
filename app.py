@@ -84,16 +84,25 @@ try:
 
     # 5. القرار الهندسي (حساب كمية الري)
     st.subheader("💧 قرار الري الذكي (Irrigation Decision)")
+    
+    # قاموس المراحل الزراعية (مثال لمحصول الطماطم حسب FAO)
+    crop_stages = {
+        "🌱 مرحلة الإنبات (Initial)": 0.60,
+        "🌿 مرحلة النمو (Development)": 0.90,
+        "🌼 مرحلة الإزهار والإنتاج (Mid-Season)": 1.15,
+        "🍅 مرحلة النضج والحصاد (Late-Season)": 0.80
+    }
+
     col1, col2, col3 = st.columns(3)
     with col1:
-        kc = st.slider("معامل المحصول (Kc):", 0.1, 2.0, 1.2)
+        # المستخدم يختار المرحلة، والكود يسحب الرقم تلقائياً!
+        selected_stage = st.selectbox("اختر مرحلة نمو المحصول:", list(crop_stages.keys()))
+        kc = crop_stages[selected_stage]
+        st.caption(f"معامل المحصول (Kc) المعتمد: **{kc}**")
     with col2:
         area = st.number_input("مساحة الحقل (متر مربع):", value=100)
     with col3:
         efficiency = st.selectbox("نظام الري المستخدم:", ["تنقيط (90%)", "رش (75%)", "غمر (60%)"])
-    
-    eff_value = 0.90 if "تنقيط" in efficiency else (0.75 if "رش" in efficiency else 0.60)
-    
     # حسابات المهندس
     today_et0 = df['ET0_AI_Predicted'].iloc[0]
     etc = today_et0 * kc
