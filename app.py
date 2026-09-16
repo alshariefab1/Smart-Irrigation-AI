@@ -6,6 +6,7 @@ import requests_cache
 import pandas as pd
 from retry_requests import retry
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, r2_score
 
 # إعدادات الصفحة
 st.set_page_config(page_title="نظام الري الذكي", page_icon="🌿", layout="wide")
@@ -73,18 +74,41 @@ try:
     st.write("📈 **مقارنة بين الحساب التقليدي وتوقع الذكاء الاصطناعي (ET0):**")
     st.line_chart(df.set_index('Date')[['ET0_Actual', 'ET0_AI_Predicted']])
 
+    # حساب دقة الذكاء الاصطناعي
+    mae = mean_absolute_error(df['ET0_Actual'], df['ET0_AI_Predicted'])
+    r2 = r2_score(df['ET0_Actual'], df['ET0_AI_Predicted'])
+
+    st.write("🎯 **تقييم دقة الذكاء الاصطناعي (Model Accuracy):**")
+    st.info(f"✔️ نسبة ذكاء النموذج (R² Score): **{r2 * 100:.2f}%**")
+    st.warning(f"⚠️ متوسط نسبة الخطأ (MAE): **{mae:.2f} ملم/يوم فقط!**")
+
     # 5. القرار الهندسي (حساب كمية الري)
     st.subheader("💧 قرار الري الذكي (Irrigation Decision)")
+    
+    # قاموس المراحل الزراعية (مثال لمحصول الطماطم حسب FAO)
+    crop_stages = {
+        "🌱 مرحلة الإنبات (Initial)": 0.60,
+        "🌿 مرحلة النمو (Development)": 0.90,
+        "🌼 مرحلة الإزهار والإنتاج (Mid-Season)": 1.15,
+        "🍅 مرحلة النضج والحصاد (Late-Season)": 0.80
+    }
+
     col1, col2, col3 = st.columns(3)
     with col1:
-        kc = st.slider("معامل المحصول (Kc):", 0.1, 2.0, 1.2)
+        # أضفنا البصمة المميزة key="stage" لحل المشكلة
+        selected_stage = st.selectbox("اختر مرحلة نمو المحصول:", list(crop_stages.keys()), key="stage")
+        kc = crop_stages[selected_stage]
+        st.caption(f"معامل المحصول (Kc) المعتمد: **{kc}**")
     with col2:
-        area = st.number_input("مساحة الحقل (متر مربع):", value=100)
+        # أضفنا البصمة المميزة key="area"
+        area = st.number_input("مساحة الحقل (متر مربع):", value=100, key="area")
     with col3:
-        efficiency = st.selectbox("نظام الري المستخدم:", ["تنقيط (90%)", "رش (75%)", "غمر (60%)"])
+        # أضفنا البصمة المميزة key="eff"
+        efficiency = st.selectbox("نظام الري المستخدم:", ["تنقيط (90%)", "رش (75%)", "غمر (60%)"], key="eff")
     
+    # تحويل النص إلى رقم رياضي
     eff_value = 0.90 if "تنقيط" in efficiency else (0.75 if "رش" in efficiency else 0.60)
-    
+
     # حسابات المهندس
     today_et0 = df['ET0_AI_Predicted'].iloc[0]
     etc = today_et0 * kc
@@ -92,6 +116,5 @@ try:
 
     st.success(f"🌱 الاحتياج المائي الصافي للمحصول (ETc): {etc:.2f} ملم/يوم")
     st.info(f"🚰 كمية الضخ المطلوبة لتعويض الفواقد: **{water_needed:.2f} لتر**")
-
 except Exception as e:
     st.error(f"حدث خطأ: {e}")
