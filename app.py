@@ -6,6 +6,7 @@ import requests_cache
 import pandas as pd
 from retry_requests import retry
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, r2_score
 
 # إعدادات الصفحة
 st.set_page_config(page_title="نظام الري الذكي", page_icon="🌿", layout="wide")
@@ -72,6 +73,14 @@ try:
 
     st.write("📈 **مقارنة بين الحساب التقليدي وتوقع الذكاء الاصطناعي (ET0):**")
     st.line_chart(df.set_index('Date')[['ET0_Actual', 'ET0_AI_Predicted']])
+
+    # حساب دقة الذكاء الاصطناعي
+    mae = mean_absolute_error(df['ET0_Actual'], df['ET0_AI_Predicted'])
+    r2 = r2_score(df['ET0_Actual'], df['ET0_AI_Predicted'])
+
+    st.write("🎯 **تقييم دقة الذكاء الاصطناعي (Model Accuracy):**")
+    st.info(f"✔️ نسبة ذكاء النموذج (R² Score): **{r2 * 100:.2f}%**")
+    st.warning(f"⚠️ متوسط نسبة الخطأ (MAE): **{mae:.2f} ملم/يوم فقط!**")
 
     # 5. القرار الهندسي (حساب كمية الري)
     st.subheader("💧 قرار الري الذكي (Irrigation Decision)")
