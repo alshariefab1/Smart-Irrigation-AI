@@ -95,15 +95,12 @@ try:
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        # أضفنا البصمة المميزة key="stage" لحل المشكلة
         selected_stage = st.selectbox("اختر مرحلة نمو المحصول:", list(crop_stages.keys()), key="stage")
         kc = crop_stages[selected_stage]
         st.caption(f"معامل المحصول (Kc) المعتمد: **{kc}**")
     with col2:
-        # أضفنا البصمة المميزة key="area"
         area = st.number_input("مساحة الحقل (متر مربع):", value=100, key="area")
     with col3:
-        # أضفنا البصمة المميزة key="eff"
         efficiency = st.selectbox("نظام الري المستخدم:", ["تنقيط (90%)", "رش (75%)", "غمر (60%)"], key="eff")
     
     # تحويل النص إلى رقم رياضي
@@ -116,5 +113,6 @@ try:
 
     st.success(f"🌱 الاحتياج المائي الصافي للمحصول (ETc): {etc:.2f} ملم/يوم")
     st.info(f"🚰 كمية الضخ المطلوبة لتعويض الفواقد: **{water_needed:.2f} لتر**")
+
 except Exception as e:
     st.error(f"حدث خطأ: {e}")
