@@ -103,6 +103,14 @@ try:
         area = st.number_input("مساحة الحقل (متر مربع):", value=100)
     with col3:
         efficiency = st.selectbox("نظام الري المستخدم:", ["تنقيط (90%)", "رش (75%)", "غمر (60%)"])
+    with col3:
+        efficiency = st.selectbox("نظام الري المستخدم:", ["تنقيط (90%)", "رش (75%)", "غمر (60%)"])
+    
+    # السطر المفقود: تحويل النص إلى رقم رياضي
+    eff_value = 0.90 if "تنقيط" in efficiency else (0.75 if "رش" in efficiency else 0.60)
+
+    # حسابات المهندس
+    today_et0 = df['ET0_AI_Predicted'].iloc[0]
     # حسابات المهندس
     today_et0 = df['ET0_AI_Predicted'].iloc[0]
     etc = today_et0 * kc
